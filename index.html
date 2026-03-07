@@ -41,8 +41,9 @@ button{
   margin-top:12px;
   border:none;
   border-radius:14px;
-  font-weight:700;
+  font-weight:700;color: #dcfce7;
   cursor:pointer;
+  background-color: #0f766e;
 }
 .btn-ok{background:#22c55e;color:white}
 .btn-no{background:#ef4444;color:white}
@@ -93,7 +94,7 @@ Welcome <b id="fmpName"></b>
 </div>
 
 <script>
-const WEBAPP_URL="https://script.google.com/macros/s/AKfycbxZCq4N4HWGIpJrVH9gFiWicHlowqtkl2qxTW-nlzTGpdEQg713_1IJ5SUCtwRdqRYEBA/exec";
+const WEBAPP_URL="https://script.google.com/macros/s/AKfycbzCVjwE1bgkVtW7TOcIBqzhM3upCNp2oW3e5LM0SeCI986IyDEUOb0-G1pGsok1-L574A/exec";
 
 const FMP_USERS=[
  {cpf:"82653",pass:"4321",name:"SHANTILAL RATHWA"},
@@ -240,12 +241,11 @@ function loadFMPHistory(){
         feeder: d.Feeder || d.feeder || "",
         contractor: d.Contractor || d.contractor || "NA",
         fmpStatus: d["FMP Status"] || d.fmpStatus || "Pending",
-        dgApprovalStatus: d["Approver Status"] || d.dgApprovalStatus || "Pending",
+        dgApprovalStatus: d["Approver Status"] || d["ApproverStatus"] || d.dgApprovalStatus || d.approverStatus || "Pending",
         dgDeployStatus: d["DG Deploy Status"] || d.dgDeployStatus || "NA",
         wells:[]
       };
     }
-
     map[rid].wells.push({
       well: d.Well || d.well || "NA",
       cap: Number(d.Capacity || d.cap || 0)
