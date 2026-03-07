@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DG Requirement – FMP Panel</title>
+
+<style>
+body{margin:0;font-family:Segoe UI;background:#f1f5f9}
+header{background:#0f766e;color:#fff;padding:16px;text-align:center;font-size:20px;font-weight:700}
+.container{max-width:700px;margin:auto;padding:16px}
+.card{background:#fff;border-radius:16px;padding:14px;margin-bottom:14px;box-shadow:0 8px 20px rgba(0,0,0,0.08)}
+/* HISTORY STATUS COLORS */
+.history-approved{
+  background:#dcfce7;   /* light green */
+  border-left:6px solid #16a34a;
+}
+
+.history-rejected{
+  background:#e5e7eb;   /* dark grey */
+  border-left:6px solid #374151;
+}
+
+.history-pending{
+  background:#fff7ed;   /* light orange */
+  border-left:6px solid #f97316;
+}
+input, select{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border-radius:12px;
+  border:1px solid #ddd;
+  box-sizing:border-box;
+  font-size:14px;
+}
+/* Buttons */
+button{
+  width:100%;
+  padding:14px;
+  margin-top:12px;
+  border:none;
+  border-radius:14px;
+  font-weight:700;
+  cursor:pointer;
+}
+.btn-ok{background:#22c55e;color:white}
+.btn-no{background:#ef4444;color:white}
+.hidden{display:none}
+.history{background:#f8fafc}
+.badge{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700}
+.forwarded{background:#dcfce7;color:#166534}
+.rejected{background:#fee2e2;color:#991b1b}
+/* LOGIN CENTER */
+#loginBox{
+  max-width:360px;
+  margin:auto;
+  margin-top:30px;
+}
+</style>
+</head>
+
+<body>
+<header>🧑‍💼 DG REQUIREMENT – FMP PANEL</header>
+
+<div class="container">
+
+<div class="card" id="loginBox">
+<h3>FMP Login</h3>
+<input id="cpf" placeholder="CPF">
+<input id="pass" type="password" placeholder="Password">
+<button class="btn-primary" onclick="login()">Login</button>
+<div id="loginMsg" style="color:red"></div>
+</div>
+
+<div id="mainBox" class="hidden">
+
+<div class="card">
+Welcome <b id="fmpName"></b>
+</div>
+
+<div class="card">
+<h3>⏳ Pending Requests</h3>
+<div id="pending"></div>
+</div>
+
+<div class="card history">
+<h3>📜 History </h3>
+<div id="fmpHistory"></div>
+</div>
+
+</div>
+</div>
+
+<script>
+const WEBAPP_URL="https://script.google.com/macros/s/AKfycbxZCq4N4HWGIpJrVH9gFiWicHlowqtkl2qxTW-nlzTGpdEQg713_1IJ5SUCtwRdqRYEBA/exec";
+
+const FMP_USERS=[
+ {cpf:"82653",pass:"4321",name:"SHANTILAL RATHWA"},
+ {cpf:"122125",pass:"4321",name:"JYOTISH GOGOI"}
+];
+
+let CURRENT_FMP=null;
+
+/* DATE FORMAT */
+function formatDateDMY(dateStr){
+ if(!dateStr) return "";
+ let d=new Date(dateStr);
+ if(isNaN(d)) return dateStr;
+ return d.toLocaleDateString("en-GB");
+}
+
+/* LOGIN */
+function login(){
+ let u=FMP_USERS.find(x=>x.cpf==cpf.value && x.pass==pass.value);
+ if(!u){ msg.innerText="❌ Invalid Login"; return; }
+ CURRENT_FMP=u;
+ loginBox.classList.add("hidden");
+ mainBox.classList.remove("hidden");
+ fmpName.innerText=u.name;
+ loadFMP();
+ loadFMPHistory();
+ setInterval(loadFMP,8000);
+ setInterval(loadFMPHistory,8000);
+}
+
+/* LOAD PENDING */
+function loadFMP(){
+ fetch(WEBAPP_URL+"?action=fmpPending")
+ .then(r=>r.json())
+ .then(data=>{
+
+  if(!data || !data.length){
+    pending.innerHTML="✅ No pending requests";
+    return;
+  }
+
+  let map={};
+
+  data.forEach(d=>{
+    let rid = String(d.RequestID || d.requestId);
+
+    if(!map[rid]){
+      map[rid]={
+        requestId: rid,
+        installation: d.Installation || d.installation,
+        shutdownDate: d.ShutdownDate || d.shutdownDate,
+        shutdownType: d.ShutdownType || d.shutdownType,
+        information: d.Information || d.information || "",
+        feeder: d.Feeder || d.feeder,
+        requestedBy: d.RequestedBy || d.requestedBy || "NA",
+        mobile: d.RequesterMobile || d.requesterMobile || d["Requester Mobile"] || d.Mobile || d.mobile || "NA",
+        wells:[]
+      };
+    }
+
+    map[rid].wells.push({
+      well: d.Well || d.well || "NA",
+      cap: Number(d.Capacity || d.capacity || 0)
+    });
+  });
+
+  let html="";
+
+  Object.values(map).forEach(req=>{
+    let wellsHtml="", totalCap=0;
+
+    req.wells.forEach(w=>{
+      totalCap+=w.cap;
+      wellsHtml+=`<div>• ${w.well} - ${w.cap} Ton</div>`;
+    });
+
+    html+=`
+    <div class="card">
+      <b>ID:</b> ${req.requestId}<br>
+      <b>Requested By:</b> ${req.requestedBy}<br>
+      <b>Mobile:</b> ${req.mobile}<br>
+      <b>Installation:</b> ${req.installation}<br>
+      <b>Shutdown Date:</b> ${formatDateDMY(req.shutdownDate)}<br>
+      <b>Shutdown Type:</b> ${req.shutdownType}<br>
+      <b>Information:</b> ${req.information}<br>
+      <b>Feeder:</b> ${req.feeder}<br><br>
+
+      <b>DG Requirements:</b><br>
+      ${wellsHtml}
+      <hr>
+      <b>Total Wells:</b> ${req.wells.length}<br>
+      <b>Total Capacity:</b> ${totalCap} Ton<br><br>
+
+      <button class="btn-ok" onclick="takeAction('${req.requestId}','Forwarded')">Forward to Approver</button>
+      <button class="btn-no" onclick="takeAction('${req.requestId}','Rejected')">Reject</button>
+    </div>`;
+  });
+
+  pending.innerHTML=html;
+ });
+}
+
+/* ACTION */
+function takeAction(requestId,status){
+ if(!confirm("Are you sure to "+status+" this request?")) return;
+ fetch(WEBAPP_URL+
+  "?action=fmpAction"+
+  "&requestId="+encodeURIComponent(requestId)+
+  "&status="+status+
+  "&fmp="+encodeURIComponent(CURRENT_FMP.fmpStatus)
+ ).then(()=>{
+   alert("✅ Request "+requestId+" "+status);
+   loadFMP();
+   loadFMPHistory();
+ });
+}
+
+/* LOAD HISTORY */
+function loadFMPHistory(){
+
+ fetch(WEBAPP_URL+"?action=fmpHistoryFull")
+ .then(r=>r.json())
+ .then(data=>{
+
+  if(!data || !data.length){
+    fmpHistory.innerHTML="No History";
+    return;
+  }
+
+  let map={};
+
+  data.forEach(d=>{
+    let rid = String(d.RequestID || d.requestId);
+
+    if(!map[rid]){
+      map[rid]={
+        requestId: rid,
+        requestedBy: d.RequestedBy || d.requestedBy || "NA",
+        mobile: d.RequesterMobile || d.requesterMobile || d["Requester Mobile"] || d.Mobile || d.mobile || "NA",
+        installation: d.Installation || d.installation,
+        shutdownDate: d.ShutdownDate || d.shutdownDate,
+        shutdownType: d.ShutdownType || d.shutdownType,
+        information: d.Information || d.information || "",
+        feeder: d.Feeder || d.feeder || "",
+        contractor: d.Contractor || d.contractor || "NA",
+        fmpStatus: d["FMP Status"] || d.fmpStatus || "Pending",
+        dgApprovalStatus: d["Approver Status"] || d.dgApprovalStatus || "Pending",
+        dgDeployStatus: d["DG Deploy Status"] || d.dgDeployStatus || "NA",
+        wells:[]
+      };
+    }
+
+    map[rid].wells.push({
+      well: d.Well || d.well || "NA",
+      cap: Number(d.Capacity || d.cap || 0)
+    });
+
+  });
+
+  let html="";
+
+  Object.values(map).reverse().forEach(req=>{
+
+    // ✅ STATUS COLOR CLASS
+    let statusClass="history-pending";
+    if(req.fmpStatus=="Forwarded" || req.fmpStatus=="Approved") statusClass="history-approved";
+    if(req.fmpStatus=="Rejected") statusClass="history-rejected";
+
+    let wellsHtml="", totalCap=0;
+
+    req.wells.forEach(w=>{
+      totalCap += Number(w.cap || 0);
+      wellsHtml += `• ${w.well} - ${w.cap} Ton<br>`;
+    });
+
+    html += `
+    <div class="card history ${statusClass}">
+      <b>ID:</b> ${req.requestId}<br>
+      <b>Requested By:</b> ${req.requestedBy}<br>
+      <b>Mobile:</b> ${req.mobile}<br>
+      <b>Installation:</b> ${req.installation}<br>
+      <b>Shutdown Date:</b> ${formatDateDMY(req.shutdownDate)}<br>
+      <b>Shutdown Type:</b> ${req.shutdownType}<br>
+      <b>Information:</b> ${req.information}<br>
+      <b>Feeder:</b> ${req.feeder}<br><br>
+
+      <b>Contractor:</b> ${req.contractor}<br><br>
+
+      <b>DG Requirements:</b><br>
+      ${wellsHtml}
+      <hr>
+
+      <b>Total Wells:</b> ${req.wells.length}<br>
+      <b>Total Production:</b> ${totalCap} Ton<br><br>
+
+      <b>FMP Status:</b> <span class="badge ${statusClass}">${req.fmpStatus}</span><br>
+      <b>DG Approval Status:</b> ${req.dgApprovalStatus}<br>
+      <b>DG Deploy Status:</b> ${req.dgDeployStatus}<br>
+    </div>`;
+  });
+
+  fmpHistory.innerHTML = html;
+ });
+}
+</script>
+</body>
+</html>
